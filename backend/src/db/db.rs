@@ -155,14 +155,19 @@ impl Database {
     /// Query all stations
     ///
     /// # Returns
-    /// * `Result<Vec<(i64, String, f64, f64)>>` - Vector of station data (id, name, lon_x, lat_y)
-    pub fn get_all_stations(&self) -> Result<Vec<(i64, String, f64, f64)>> {
+    /// * `Result<Vec<Station>>` - Vector of station data
+    pub fn get_all_stations(&self) -> Result<Vec<Station>> {
         let mut stmt = self
             .conn
             .prepare("SELECT id, name, lon_x, lat_y FROM stations")?;
 
         let stations = stmt.query_map([], |row| {
-            Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
+            Ok(Station {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                lon_x: row.get(2)?,
+                lat_y: row.get(3)?,
+            })
         })?;
 
         let mut result = Vec::new();
