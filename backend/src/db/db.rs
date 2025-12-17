@@ -3,14 +3,15 @@ use std::path::Path;
 
 /// Struct to represent climate data
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct ClimateData {
     pub id: i64,
     pub station_id: i64,
     pub year: i64,
     pub first_sf: Option<String>,
-    pub second_sf: Option<String>,
-    pub first_temp: Option<String>,
-    pub second_temp: Option<String>,
+    pub last_sf: Option<String>,
+    pub first_above: Option<String>,
+    pub first_below: Option<String>,
 }
 
 /// Database struct to manage SQLite connections
@@ -41,6 +42,7 @@ impl Database {
     }
 
     /// Create a new in-memory database (useful for testing)
+    #[allow(dead_code)]
     pub fn new_in_memory() -> Result<Self> {
         let conn = Connection::open_in_memory()?;
         Ok(Database { conn })
@@ -67,9 +69,9 @@ impl Database {
                 station_id INTEGER NOT NULL,
                 year INTEGER NOT NULL,
                 first_sf TEXT,
-                second_sf TEXT,
-                first_temp TEXT,
-                second_temp TEXT,
+                last_sf TEXT,
+                first_above TEXT,
+                first_below TEXT,
                 FOREIGN KEY (station_id) REFERENCES stations(id)
             )",
             [],
@@ -111,31 +113,32 @@ impl Database {
     /// * `station_id` - Station ID
     /// * `year` - Year
     /// * `first_sf` - First snowfall date
-    /// * `second_sf` - Second snowfall date
-    /// * `first_temp` - First temperature date
-    /// * `second_temp` - Second temperature date
+    /// * `last_sf` - Last snowfall date
+    /// * `first_above` - First day above freezing
+    /// * `first_below` - First day below freezing
     ///
     /// # Returns
     /// * `Result<i64>` - ID of the inserted data
+    #[allow(dead_code)]
     pub fn insert_data(
         &self,
         station_id: i64,
         year: i64,
         first_sf: Option<&str>,
-        second_sf: Option<&str>,
-        first_temp: Option<&str>,
-        second_temp: Option<&str>,
+        last_sf: Option<&str>,
+        first_above: Option<&str>,
+        first_below: Option<&str>,
     ) -> Result<i64> {
         self.conn.execute(
-            "INSERT INTO data (station_id, year, first_sf, second_sf, first_temp, second_temp)
+            "INSERT INTO data (station_id, year, first_sf, last_sf, first_above, first_below)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
             params![
                 station_id,
                 year,
                 first_sf,
-                second_sf,
-                first_temp,
-                second_temp
+                last_sf,
+                first_above,
+                first_below
             ],
         )?;
         Ok(self.conn.last_insert_rowid())
@@ -148,6 +151,7 @@ impl Database {
     ///
     /// # Returns
     /// * `Result<Option<(i64, String, f64, f64)>>` - Station data (id, name, lon_x, lat_y) or None
+    #[allow(dead_code)]
     pub fn get_station_by_id(&self, station_id: i64) -> Result<Option<(i64, String, f64, f64)>> {
         let mut stmt = self
             .conn
@@ -200,9 +204,10 @@ impl Database {
     ///
     /// # Returns
     /// * `Result<Vec<ClimateData>>` - Vector of climate data for the station
+    #[allow(dead_code)]
     pub fn get_data_by_station(&self, station_id: i64) -> Result<Vec<ClimateData>> {
         let mut stmt = self.conn.prepare(
-            "SELECT id, station_id, year, first_sf, second_sf, first_temp, second_temp
+            "SELECT id, station_id, year, first_sf, last_sf, first_above, first_below
              FROM data WHERE station_id = ?1",
         )?;
 
@@ -212,9 +217,9 @@ impl Database {
                 station_id: row.get(1)?,
                 year: row.get(2)?,
                 first_sf: row.get(3)?,
-                second_sf: row.get(4)?,
-                first_temp: row.get(5)?,
-                second_temp: row.get(6)?,
+                last_sf: row.get(4)?,
+                first_above: row.get(5)?,
+                first_below: row.get(6)?,
             })
         })?;
 
@@ -232,9 +237,10 @@ impl Database {
     ///
     /// # Returns
     /// * `Result<Vec<ClimateData>>` - Vector of climate data for the year
+    #[allow(dead_code)]
     pub fn get_data_by_year(&self, year: i64) -> Result<Vec<ClimateData>> {
         let mut stmt = self.conn.prepare(
-            "SELECT id, station_id, year, first_sf, second_sf, first_temp, second_temp
+            "SELECT id, station_id, year, first_sf, last_sf, first_above, first_below
              FROM data WHERE year = ?1",
         )?;
 
@@ -244,9 +250,9 @@ impl Database {
                 station_id: row.get(1)?,
                 year: row.get(2)?,
                 first_sf: row.get(3)?,
-                second_sf: row.get(4)?,
-                first_temp: row.get(5)?,
-                second_temp: row.get(6)?,
+                last_sf: row.get(4)?,
+                first_above: row.get(5)?,
+                first_below: row.get(6)?,
             })
         })?;
 
@@ -261,9 +267,10 @@ impl Database {
     ///
     /// # Returns
     /// * `Result<Vec<ClimateData>>` - Vector of all climate data entries
+    #[allow(dead_code)]
     pub fn get_all_data(&self) -> Result<Vec<ClimateData>> {
         let mut stmt = self.conn.prepare(
-            "SELECT id, station_id, year, first_sf, second_sf, first_temp, second_temp FROM data",
+            "SELECT id, station_id, year, first_sf, last_sf, first_above, first_below FROM data",
         )?;
 
         let data_entries = stmt.query_map([], |row| {
@@ -272,9 +279,9 @@ impl Database {
                 station_id: row.get(1)?,
                 year: row.get(2)?,
                 first_sf: row.get(3)?,
-                second_sf: row.get(4)?,
-                first_temp: row.get(5)?,
-                second_temp: row.get(6)?,
+                last_sf: row.get(4)?,
+                first_above: row.get(5)?,
+                first_below: row.get(6)?,
             })
         })?;
 
@@ -292,6 +299,7 @@ impl Database {
     ///
     /// # Returns
     /// * `Result<usize>` - Number of rows affected
+    #[allow(dead_code)]
     pub fn delete_station(&self, station_id: i64) -> Result<usize> {
         // First delete associated data
         self.conn.execute(
@@ -310,29 +318,34 @@ impl Database {
     ///
     /// # Returns
     /// * `Result<usize>` - Number of rows affected
+    #[allow(dead_code)]
     pub fn execute_query(&self, query: &str) -> Result<usize> {
         self.conn.execute(query, [])
     }
 
     /// Begin a transaction
+    #[allow(dead_code)]
     pub fn begin_transaction(&mut self) -> Result<()> {
         self.conn.execute("BEGIN TRANSACTION", [])?;
         Ok(())
     }
 
     /// Commit a transaction
+    #[allow(dead_code)]
     pub fn commit_transaction(&mut self) -> Result<()> {
         self.conn.execute("COMMIT", [])?;
         Ok(())
     }
 
     /// Rollback a transaction
+    #[allow(dead_code)]
     pub fn rollback_transaction(&mut self) -> Result<()> {
         self.conn.execute("ROLLBACK", [])?;
         Ok(())
     }
 
     /// Get the underlying connection for advanced operations
+    #[allow(dead_code)]
     pub fn connection(&self) -> &Connection {
         &self.conn
     }

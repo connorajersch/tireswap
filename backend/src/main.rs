@@ -9,7 +9,6 @@ use aggregator::Aggregator;
 mod nearest;
 use nearest::NearestStationFinder;
 
-#[tokio::main]
 async fn get_data() -> Result<(), reqwest::Error> {
     let client = reqwest::Client::new();
 
@@ -36,6 +35,9 @@ async fn get_data() -> Result<(), reqwest::Error> {
 
 #[tokio::main]
 async fn main() {
+    // Get bulk data example
+    let _ = get_data().await.unwrap();
+
     // Initialize database
     let db = Database::new("tireswap.db").unwrap();
     db.initialize_schema().unwrap();
