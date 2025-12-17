@@ -40,20 +40,13 @@ async fn main() {
     let db = Database::new("tireswap.db").unwrap();
     db.initialize_schema().unwrap();
 
-    // Example aggregator usage
-    let aggregator = Aggregator::new();
+    // Fetch and store stations using aggregator
+    let aggregator = Aggregator::new(&db);
 
-    match aggregator.get_sations().await {
-        Ok(stations) => {
-            println!("\nFetched stations from API...");
-            for station in stations {
-                match db.insert_station(station.id, &station.name, station.lon_x, station.lat_y) {
-                    Ok(_) => continue,
-                    Err(e) => eprintln!("Error inserting station ID {}: {}", station.id, e),
-                }
-            }
-        }
-        Err(e) => eprintln!("Error fetching stations: {}", e),
+    println!("\nFetching stations from API...");
+    match aggregator.fetch_and_store_stations().await {
+        Ok(count) => println!("Successfully inserted {} stations into database", count),
+        Err(e) => eprintln!("Error fetching/storing stations: {}", e),
     }
 
     // Example: Find nearest station to Toronto coordinates
@@ -70,6 +63,9 @@ async fn main() {
                 println!("Nearest station: {} (ID: {})", nearest.name, nearest.id);
                 println!("  Location: ({}, {})", nearest.lat_y, nearest.lon_x);
                 println!("  Distance: {:.2} km", nearest.distance_km);
+                if let (Some(first), Some(last)) = (&nearest.dly_first_date, &nearest.dly_last_date) {
+                    println!("  Daily data available: {} to {}", first, last);
+                }
             } else {
                 println!("No stations found in database");
             }
@@ -78,7 +74,11 @@ async fn main() {
             println!("\nFinding 5 nearest stations...");
             let nearest_5 = finder.find_k_nearest(home_lat, home_lon, 5);
             for (i, station) in nearest_5.iter().enumerate() {
-                println!("{}. {} - {:.2} km away", i + 1, station.name, station.distance_km);
+                let date_info = match (&station.dly_first_date, &station.dly_last_date) {
+                    (Some(first), Some(last)) => format!(" (data: {} to {})", first, last),
+                    _ => String::new(),
+                };
+                println!("{}. {} - {:.2} km away{}", i + 1, station.name, station.distance_km, date_info);
             }
         }
         Err(e) => eprintln!("Error creating nearest station finder: {}", e),

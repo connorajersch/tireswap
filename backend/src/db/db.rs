@@ -23,6 +23,8 @@ pub struct Station {
     pub name: String,
     pub lon_x: f64,
     pub lat_y: f64,
+    pub dly_first_date: Option<String>,
+    pub dly_last_date: Option<String>,
 }
 
 impl Database {
@@ -52,7 +54,9 @@ impl Database {
                 id INTEGER PRIMARY KEY,
                 name TEXT NOT NULL,
                 lon_x REAL NOT NULL,
-                lat_y REAL NOT NULL
+                lat_y REAL NOT NULL,
+                dly_first_date TEXT,
+                dly_last_date TEXT
             )",
             [],
         )?;
@@ -81,13 +85,23 @@ impl Database {
     /// * `name` - Station name
     /// * `lon_x` - Longitude
     /// * `lat_y` - Latitude
+    /// * `dly_first_date` - First date of daily weather recordings
+    /// * `dly_last_date` - Last date of daily weather recordings
     ///
     /// # Returns
     /// * `Result<usize>` - Number of rows affected
-    pub fn insert_station(&self, id: i64, name: &String, lon_x: f64, lat_y: f64) -> Result<usize> {
+    pub fn insert_station(
+        &self,
+        id: i64,
+        name: &String,
+        lon_x: f64,
+        lat_y: f64,
+        dly_first_date: Option<&str>,
+        dly_last_date: Option<&str>,
+    ) -> Result<usize> {
         self.conn.execute(
-            "INSERT OR REPLACE INTO stations (id, name, lon_x, lat_y) VALUES (?1, ?2, ?3, ?4)",
-            params![id, name, lon_x, lat_y],
+            "INSERT OR REPLACE INTO stations (id, name, lon_x, lat_y, dly_first_date, dly_last_date) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![id, name, lon_x, lat_y, dly_first_date, dly_last_date],
         )
     }
 
@@ -159,7 +173,7 @@ impl Database {
     pub fn get_all_stations(&self) -> Result<Vec<Station>> {
         let mut stmt = self
             .conn
-            .prepare("SELECT id, name, lon_x, lat_y FROM stations")?;
+            .prepare("SELECT id, name, lon_x, lat_y, dly_first_date, dly_last_date FROM stations")?;
 
         let stations = stmt.query_map([], |row| {
             Ok(Station {
@@ -167,6 +181,8 @@ impl Database {
                 name: row.get(1)?,
                 lon_x: row.get(2)?,
                 lat_y: row.get(3)?,
+                dly_first_date: row.get(4)?,
+                dly_last_date: row.get(5)?,
             })
         })?;
 
@@ -337,7 +353,7 @@ mod tests {
         let db = Database::new_in_memory().unwrap();
         db.initialize_schema().unwrap();
 
-        db.insert_station(4607, &"Test Station".to_string(), -79.4, 43.7)
+        db.insert_station(4607, &"Test Station".to_string(), -79.4, 43.7, Some("2020-01-01"), Some("2023-12-31"))
             .unwrap();
 
         let station = db.get_station_by_id(4607).unwrap();
@@ -355,7 +371,7 @@ mod tests {
         let db = Database::new_in_memory().unwrap();
         db.initialize_schema().unwrap();
 
-        db.insert_station(4607, &"Test Station".to_string(), -79.4, 43.7)
+        db.insert_station(4607, &"Test Station".to_string(), -79.4, 43.7, None, None)
             .unwrap();
         let data_id = db
             .insert_data(
@@ -380,9 +396,9 @@ mod tests {
         let db = Database::new_in_memory().unwrap();
         db.initialize_schema().unwrap();
 
-        db.insert_station(4607, &"Station 1".to_string(), -79.4, 43.7)
+        db.insert_station(4607, &"Station 1".to_string(), -79.4, 43.7, Some("2020-01-01"), Some("2023-12-31"))
             .unwrap();
-        db.insert_station(5678, &"Station 2".to_string(), -80.0, 44.0)
+        db.insert_station(5678, &"Station 2".to_string(), -80.0, 44.0, None, None)
             .unwrap();
 
         let stations = db.get_all_stations().unwrap();
@@ -394,7 +410,7 @@ mod tests {
         let db = Database::new_in_memory().unwrap();
         db.initialize_schema().unwrap();
 
-        db.insert_station(4607, &"Test Station".to_string(), -79.4, 43.7)
+        db.insert_station(4607, &"Test Station".to_string(), -79.4, 43.7, None, None)
             .unwrap();
         db.insert_data(4607, 2023, Some("2023-11-15"), None, None, None)
             .unwrap();

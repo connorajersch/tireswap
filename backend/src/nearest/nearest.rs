@@ -12,13 +12,15 @@ pub struct StationWithDistance {
     pub lon_x: f64,
     pub lat_y: f64,
     pub distance_km: f64,
+    pub dly_first_date: Option<String>,
+    pub dly_last_date: Option<String>,
 }
 
 /// NearestStationFinder uses a k-d tree to efficiently find the closest weather station
 /// to a given latitude and longitude using haversine distance.
 pub struct NearestStationFinder {
     kdtree: KdTree<f64, 2>,
-    stations: Vec<(i64, String, f64, f64)>, // (id, name, lon, lat)
+    stations: Vec<(i64, String, f64, f64, Option<String>, Option<String>)>, // (id, name, lon, lat, dly_first_date, dly_last_date)
 }
 
 impl NearestStationFinder {
@@ -37,7 +39,14 @@ impl NearestStationFinder {
         
         for (idx, station) in stations.iter().enumerate() {
             // Store station data
-            station_vec.push((station.id, station.name.clone(), station.lon_x, station.lat_y));
+            station_vec.push((
+                station.id,
+                station.name.clone(),
+                station.lon_x,
+                station.lat_y,
+                station.dly_first_date.clone(),
+                station.dly_last_date.clone(),
+            ));
             
             // Insert into k-d tree using [longitude, latitude] as coordinates
             // We use raw coordinates here; haversine will be calculated during search
@@ -99,7 +108,7 @@ impl NearestStationFinder {
         for neighbour in nearest {
             let idx = neighbour.item as usize;
             // Get station by index
-            if let Some((id, name, s_lon, s_lat)) = self.stations.get(idx) {
+            if let Some((id, name, s_lon, s_lat, dly_first, dly_last)) = self.stations.get(idx) {
                 let distance = Self::haversine_distance(lat, lon, *s_lat, *s_lon);
                 
                 if distance < best_distance {
@@ -110,6 +119,8 @@ impl NearestStationFinder {
                         lon_x: *s_lon,
                         lat_y: *s_lat,
                         distance_km: distance,
+                        dly_first_date: dly_first.clone(),
+                        dly_last_date: dly_last.clone(),
                     });
                 }
             }
@@ -141,7 +152,7 @@ impl NearestStationFinder {
             .iter()
             .filter_map(|neighbour| {
                 let idx = neighbour.item as usize;
-                self.stations.get(idx).map(|(id, name, s_lon, s_lat)| {
+                self.stations.get(idx).map(|(id, name, s_lon, s_lat, dly_first, dly_last)| {
                     let distance = Self::haversine_distance(lat, lon, *s_lat, *s_lon);
                     StationWithDistance {
                         id: *id,
@@ -149,6 +160,8 @@ impl NearestStationFinder {
                         lon_x: *s_lon,
                         lat_y: *s_lat,
                         distance_km: distance,
+                        dly_first_date: dly_first.clone(),
+                        dly_last_date: dly_last.clone(),
                     }
                 })
             })
