@@ -10,8 +10,8 @@ pub struct ClimateData {
     pub year: i64,
     pub first_sf: Option<String>,
     pub last_sf: Option<String>,
-    pub first_above: Option<String>,
-    pub first_below: Option<String>,
+    pub switch_to_summer: Option<String>,
+    pub switch_to_winter: Option<String>,
 }
 
 /// Database struct to manage SQLite connections
@@ -70,8 +70,8 @@ impl Database {
                 year INTEGER NOT NULL,
                 first_sf TEXT,
                 last_sf TEXT,
-                first_above TEXT,
-                first_below TEXT,
+                switch_to_summer TEXT,
+                switch_to_winter TEXT,
                 FOREIGN KEY (station_id) REFERENCES stations(id)
             )",
             [],
@@ -126,19 +126,19 @@ impl Database {
         year: i64,
         first_sf: Option<&str>,
         last_sf: Option<&str>,
-        first_above: Option<&str>,
-        first_below: Option<&str>,
+        switch_to_summer: Option<&str>,
+        switch_to_winter: Option<&str>,
     ) -> Result<i64> {
         self.conn.execute(
-            "INSERT INTO data (station_id, year, first_sf, last_sf, first_above, first_below)
+            "INSERT INTO data (station_id, year, first_sf, last_sf, switch_to_summer, switch_to_winter)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
             params![
                 station_id,
                 year,
                 first_sf,
                 last_sf,
-                first_above,
-                first_below
+                switch_to_summer,
+                switch_to_winter
             ],
         )?;
         Ok(self.conn.last_insert_rowid())
@@ -175,9 +175,9 @@ impl Database {
     /// # Returns
     /// * `Result<Vec<Station>>` - Vector of station data
     pub fn get_all_stations(&self) -> Result<Vec<Station>> {
-        let mut stmt = self
-            .conn
-            .prepare("SELECT id, name, lon_x, lat_y, dly_first_date, dly_last_date FROM stations")?;
+        let mut stmt = self.conn.prepare(
+            "SELECT id, name, lon_x, lat_y, dly_first_date, dly_last_date FROM stations",
+        )?;
 
         let stations = stmt.query_map([], |row| {
             Ok(Station {
@@ -207,7 +207,7 @@ impl Database {
     #[allow(dead_code)]
     pub fn get_data_by_station(&self, station_id: i64) -> Result<Vec<ClimateData>> {
         let mut stmt = self.conn.prepare(
-            "SELECT id, station_id, year, first_sf, last_sf, first_above, first_below
+            "SELECT id, station_id, year, first_sf, last_sf, switch_to_summer, switch_to_winter
              FROM data WHERE station_id = ?1",
         )?;
 
@@ -218,8 +218,8 @@ impl Database {
                 year: row.get(2)?,
                 first_sf: row.get(3)?,
                 last_sf: row.get(4)?,
-                first_above: row.get(5)?,
-                first_below: row.get(6)?,
+                switch_to_summer: row.get(5)?,
+                switch_to_winter: row.get(6)?,
             })
         })?;
 
@@ -240,7 +240,7 @@ impl Database {
     #[allow(dead_code)]
     pub fn get_data_by_year(&self, year: i64) -> Result<Vec<ClimateData>> {
         let mut stmt = self.conn.prepare(
-            "SELECT id, station_id, year, first_sf, last_sf, first_above, first_below
+            "SELECT id, station_id, year, first_sf, last_sf, switch_to_summer, switch_to_winter
              FROM data WHERE year = ?1",
         )?;
 
@@ -251,8 +251,8 @@ impl Database {
                 year: row.get(2)?,
                 first_sf: row.get(3)?,
                 last_sf: row.get(4)?,
-                first_above: row.get(5)?,
-                first_below: row.get(6)?,
+                switch_to_summer: row.get(5)?,
+                switch_to_winter: row.get(6)?,
             })
         })?;
 
@@ -270,7 +270,7 @@ impl Database {
     #[allow(dead_code)]
     pub fn get_all_data(&self) -> Result<Vec<ClimateData>> {
         let mut stmt = self.conn.prepare(
-            "SELECT id, station_id, year, first_sf, last_sf, first_above, first_below FROM data",
+            "SELECT id, station_id, year, first_sf, last_sf, switch_to_summer, switch_to_winter FROM data",
         )?;
 
         let data_entries = stmt.query_map([], |row| {
@@ -280,8 +280,8 @@ impl Database {
                 year: row.get(2)?,
                 first_sf: row.get(3)?,
                 last_sf: row.get(4)?,
-                first_above: row.get(5)?,
-                first_below: row.get(6)?,
+                switch_to_summer: row.get(5)?,
+                switch_to_winter: row.get(6)?,
             })
         })?;
 
@@ -366,8 +366,15 @@ mod tests {
         let db = Database::new_in_memory().unwrap();
         db.initialize_schema().unwrap();
 
-        db.insert_station(4607, &"Test Station".to_string(), -79.4, 43.7, Some("2020-01-01"), Some("2023-12-31"))
-            .unwrap();
+        db.insert_station(
+            4607,
+            &"Test Station".to_string(),
+            -79.4,
+            43.7,
+            Some("2020-01-01"),
+            Some("2023-12-31"),
+        )
+        .unwrap();
 
         let station = db.get_station_by_id(4607).unwrap();
         assert!(station.is_some());
@@ -409,8 +416,15 @@ mod tests {
         let db = Database::new_in_memory().unwrap();
         db.initialize_schema().unwrap();
 
-        db.insert_station(4607, &"Station 1".to_string(), -79.4, 43.7, Some("2020-01-01"), Some("2023-12-31"))
-            .unwrap();
+        db.insert_station(
+            4607,
+            &"Station 1".to_string(),
+            -79.4,
+            43.7,
+            Some("2020-01-01"),
+            Some("2023-12-31"),
+        )
+        .unwrap();
         db.insert_station(5678, &"Station 2".to_string(), -80.0, 44.0, None, None)
             .unwrap();
 
