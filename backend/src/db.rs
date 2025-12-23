@@ -1,5 +1,6 @@
 use rusqlite::{Connection, Result, params};
 use std::path::Path;
+use std::sync::Mutex;
 
 /// Struct to represent climate data
 #[derive(Debug, Clone)]
@@ -14,7 +15,7 @@ pub struct ClimateData {
 
 /// Database struct to manage SQLite connections
 pub struct Database {
-    conn: Connection,
+    conn: Mutex<Connection>,
 }
 
 pub struct Station {
@@ -36,20 +37,21 @@ impl Database {
     /// * `Result<Self>` - Database instance or error
     pub fn new<P: AsRef<Path>>(db_path: P) -> Result<Self> {
         let conn = Connection::open(db_path)?;
-        Ok(Database { conn })
+        Ok(Database { conn: Mutex::new(conn) })
     }
 
     /// Create a new in-memory database (useful for testing)
     #[allow(dead_code)]
     pub fn new_in_memory() -> Result<Self> {
         let conn = Connection::open_in_memory()?;
-        Ok(Database { conn })
+        Ok(Database { conn: Mutex::new(conn) })
     }
 
     /// Initialize the database schema
     /// Creates tables for weather stations and climate data
     pub fn initialize_schema(&self) -> Result<()> {
-        self.conn.execute(
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
             "CREATE TABLE IF NOT EXISTS stations (
                 id INTEGER PRIMARY KEY,
                 name TEXT NOT NULL,
@@ -61,7 +63,7 @@ impl Database {
             [],
         )?;
 
-        self.conn.execute(
+        conn.execute(
             "CREATE TABLE IF NOT EXISTS data (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 station_id INTEGER NOT NULL,
@@ -97,7 +99,8 @@ impl Database {
         dly_first_date: Option<&str>,
         dly_last_date: Option<&str>,
     ) -> Result<usize> {
-        self.conn.execute(
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
             "INSERT OR REPLACE INTO stations (id, name, lon_x, lat_y, dly_first_date, dly_last_date) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
             params![id, name, lon_x, lat_y, dly_first_date, dly_last_date],
         )
@@ -121,7 +124,8 @@ impl Database {
         switch_to_summer: Option<&str>,
         switch_to_winter: Option<&str>,
     ) -> Result<i64> {
-        self.conn.execute(
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
             "INSERT INTO data (station_id, year, switch_to_summer, switch_to_winter)
              VALUES (?1, ?2, ?3, ?4)",
             params![
@@ -131,7 +135,7 @@ impl Database {
                 switch_to_winter
             ],
         )?;
-        Ok(self.conn.last_insert_rowid())
+        Ok(conn.last_insert_rowid())
     }
 
     /// Get a station by ID
@@ -143,8 +147,8 @@ impl Database {
     /// * `Result<Option<(i64, String, f64, f64)>>` - Station data (id, name, lon_x, lat_y) or None
     #[allow(dead_code)]
     pub fn get_station_by_id(&self, station_id: i64) -> Result<Option<(i64, String, f64, f64)>> {
-        let mut stmt = self
-            .conn
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn
             .prepare("SELECT id, name, lon_x, lat_y FROM stations WHERE id = ?1")?;
 
         let mut rows = stmt.query(params![station_id])?;
@@ -165,7 +169,8 @@ impl Database {
     /// # Returns
     /// * `Result<Vec<Station>>` - Vector of station data
     pub fn get_all_stations(&self) -> Result<Vec<Station>> {
-        let mut stmt = self.conn.prepare(
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
             "SELECT id, name, lon_x, lat_y, dly_first_date, dly_last_date FROM stations",
         )?;
 
@@ -196,7 +201,8 @@ impl Database {
     /// * `Result<Vec<ClimateData>>` - Vector of climate data for the station
     #[allow(dead_code)]
     pub fn get_data_by_station(&self, station_id: i64) -> Result<Vec<ClimateData>> {
-        let mut stmt = self.conn.prepare(
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
             "SELECT id, station_id, year, switch_to_summer, switch_to_winter
              FROM data WHERE station_id = ?1",
         )?;
@@ -227,7 +233,8 @@ impl Database {
     /// * `Result<Vec<ClimateData>>` - Vector of climate data for the year
     #[allow(dead_code)]
     pub fn get_data_by_year(&self, year: i64) -> Result<Vec<ClimateData>> {
-        let mut stmt = self.conn.prepare(
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
             "SELECT id, station_id, year, switch_to_summer, switch_to_winter
              FROM data WHERE year = ?1",
         )?;
@@ -255,7 +262,8 @@ impl Database {
     /// * `Result<Vec<ClimateData>>` - Vector of all climate data entries
     #[allow(dead_code)]
     pub fn get_all_data(&self) -> Result<Vec<ClimateData>> {
-        let mut stmt = self.conn.prepare(
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
             "SELECT id, station_id, year, switch_to_summer, switch_to_winter FROM data",
         )?;
 
@@ -285,13 +293,14 @@ impl Database {
     /// * `Result<usize>` - Number of rows affected
     #[allow(dead_code)]
     pub fn delete_station(&self, station_id: i64) -> Result<usize> {
+        let conn = self.conn.lock().unwrap();
         // First delete associated data
-        self.conn.execute(
+        conn.execute(
             "DELETE FROM data WHERE station_id = ?1",
             params![station_id],
         )?;
         // Then delete the station
-        self.conn
+        conn
             .execute("DELETE FROM stations WHERE id = ?1", params![station_id])
     }
 
@@ -304,35 +313,35 @@ impl Database {
     /// * `Result<usize>` - Number of rows affected
     #[allow(dead_code)]
     pub fn execute_query(&self, query: &str) -> Result<usize> {
-        self.conn.execute(query, [])
+        let conn = self.conn.lock().unwrap();
+        conn.execute(query, [])
     }
 
     /// Begin a transaction
     #[allow(dead_code)]
-    pub fn begin_transaction(&mut self) -> Result<()> {
-        self.conn.execute("BEGIN TRANSACTION", [])?;
+    pub fn begin_transaction(&self) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute("BEGIN TRANSACTION", [])?;
         Ok(())
     }
 
     /// Commit a transaction
     #[allow(dead_code)]
-    pub fn commit_transaction(&mut self) -> Result<()> {
-        self.conn.execute("COMMIT", [])?;
+    pub fn commit_transaction(&self) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute("COMMIT", [])?;
         Ok(())
     }
 
     /// Rollback a transaction
     #[allow(dead_code)]
-    pub fn rollback_transaction(&mut self) -> Result<()> {
-        self.conn.execute("ROLLBACK", [])?;
+    pub fn rollback_transaction(&self) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute("ROLLBACK", [])?;
         Ok(())
     }
 
-    /// Get the underlying connection for advanced operations
-    #[allow(dead_code)]
-    pub fn connection(&self) -> &Connection {
-        &self.conn
-    }
+
 }
 
 #[cfg(test)]
