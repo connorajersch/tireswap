@@ -70,17 +70,6 @@ This will:
 2. Analyze climate data from all stations (default: 5 stations)
 3. Calculate and display the average optimal tire change dates
 
-Output example:
-```
---- Tire Swap Analysis ---
-Analyzing tire swap dates for location (42.3149, -83.0364)...
-
-Based on 5 nearest weather stations:
-
-🌞 Switch to summer tires: April 30
-❄️  Switch to winter tires: October 22
-```
-
 ### Example Locations
 
 Some example Canadian cities you can try:
@@ -167,64 +156,4 @@ Manages SQLite database operations including schema initialization and CRUD oper
 Implements efficient spatial search using KD-tree data structure to quickly find closest weather stations to any location.
 
 ## Dependencies
-
-Key dependencies include:
-- **reqwest**: HTTP client for API requests
-- **tokio**: Async runtime
-- **rusqlite**: SQLite database interface
-- **kiddo**: KD-tree implementation for spatial searches
-- **clap**: Command-line argument parsing
-- **serde_json**: JSON parsing
-- **indicatif**: Progress bars
-
 See [Cargo.toml](Cargo.toml) for the complete list.
-
-## Example Output
-
-### Database Update
-```
-Fetching stations from API...
-Successfully inserted 142 stations into database
-
-Fetching climate data for all stations...
-[00:02:15] ████████████████████████████ 142/142
-Climate data collection complete!
-```
-
-### Tire Swap Analysis
-```
---- Tire Swap Analysis ---
-Analyzing tire swap dates for location (42.3149, -83.0364)...
-
-Based on 5 nearest weather stations:
-
-🌞 Switch to summer tires: April 30
-❄️  Switch to winter tires: October 22
-```
-
-## Performance
-
-- Initial database population: ~5-15 minutes (one-time setup)
-- Nearest station search: < 10ms (using KD-tree indexing)
-- Concurrent API requests: Limited to 10 simultaneous connections to avoid overwhelming the server
-
-## Data Source
-
-All weather data is sourced from Environment Canada's climate data API. Stations are filtered to only include those that:
-- Have reported data within the last 7 days (active stations)
-- Have at least 5 years of historical data
-
-## Troubleshooting
-
-**Issue**: Database errors on startup  
-**Solution**: Delete `tireswap.db` and run `cargo run -- --update-db` to recreate
-
-**Issue**: No climate data for some stations  
-**Solution**: Some stations may not have all climate metrics available - this is expected
-
-**Issue**: API timeout errors  
-**Solution**: Retry the `--update-db` command - the database will skip stations that already have data
-
-## License
-
-This project is for personal use.
