@@ -8,8 +8,11 @@ const EARTH_RADIUS_KM: f64 = 6371.0;
 #[derive(Debug, Clone)]
 pub struct StationWithDistance {
     pub id: i64,
+    #[allow(dead_code)]
     pub name: String,
+    #[allow(dead_code)]
     pub lon_x: f64,
+    #[allow(dead_code)]
     pub lat_y: f64,
     pub distance_km: f64,
     #[allow(dead_code)]

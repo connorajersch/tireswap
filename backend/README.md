@@ -1,6 +1,6 @@
 # Tire Swap Weather Station Finder
 
-A Rust-based backend tool that helps determine optimal tire swap dates based on weather station data and climate metrics across Canada. The tool fetches real-time weather station data, stores it locally, and provides recommendations for when to switch between summer and winter tires.
+A Rust-based backend tool that helps determine optimal tire swap dates based on weather station data and climate metrics across Canada. The tool fetches real-time weather station data, stores it locally, and analyzes climate patterns to provide personalized recommendations for when to switch between summer and winter tires based on your location.
 
 ## Features
 
@@ -10,6 +10,7 @@ A Rust-based backend tool that helps determine optimal tire swap dates based on 
   - Last snowfall dates
   - Recommended summer tire switch dates
   - Recommended winter tire switch dates
+- **Tire Swap Analyzer**: Analyzes the k-nearest weather stations to your location and calculates average optimal tire change dates
 - **Nearest Station Finder**: Uses KD-tree spatial indexing to quickly find the closest weather stations to any location
 - **Local Database**: Stores all data in a SQLite database for offline access and faster queries
 - **Smart Filtering**: Only includes stations that are currently active (reported data within the last week) and have at least 5 years of historical data
@@ -49,42 +50,77 @@ This command will:
 
 **Note**: This process may take 5-15 minutes depending on your internet connection and the number of active stations.
 
-### Find Nearest Weather Stations
+### Get Tire Swap Recommendations
 
-After populating the database, run the tool without flags to find the nearest weather stations:
+After populating the database, run the tool with your location coordinates to get tire swap recommendations:
 
 ```bash
-cargo run
+# Analyze Windsor, ON
+cargo run -- --latitude 42.3149 --longitude=-83.0364
+
+# Analyze Calgary, AB
+cargo run -- --latitude 51.0447 --longitude=-114.0719
+
+# Analyze with more stations (10 instead of default 5)
+cargo run -- --latitude 49.8951 --longitude=-97.1384 -n 10
 ```
 
-By default, this will find the 5 nearest weather stations to the hardcoded coordinates (currently set to Windsor, ON: 42.3149, -83.0364) and display:
-- Station name
-- Distance in kilometers
-- Coordinates
-- Climate metrics (first/last snowfall, tire swap recommendations)
+This will:
+1. Find the nearest weather stations to the specified coordinates
+2. Analyze climate data from all stations (default: 5 stations)
+3. Calculate and display the average optimal tire change dates
 
-### Customize Location
+Output example:
+```
+--- Tire Swap Analysis ---
+Analyzing tire swap dates for location (42.3149, -83.0364)...
 
-To find weather stations near a different location, edit the coordinates in [src/main.rs](src/main.rs#L114-L115):
+Based on 5 nearest weather stations:
 
-```rust
-let home_lat = 42.3149;  // Your latitude
-let home_lon = -83.0364; // Your longitude
+🌞 Switch to summer tires: April 30
+❄️  Switch to winter tires: October 22
 ```
 
-Then rebuild and run:
+### Example Locations
+
+Some example Canadian cities you can try:
+
 ```bash
-cargo build
-cargo run
+# Windsor, ON
+cargo run -- --latitude 42.3149 --longitude=-83.0364
+
+# London, ON
+cargo run -- --latitude 42.9849 --longitude=-81.2453
+
+# Thunder Bay, ON
+cargo run -- --latitude 48.3809 --longitude=-89.2477
+
+# Winnipeg, MB
+cargo run -- --latitude 49.8951 --longitude=-97.1384
+
+# Calgary, AB
+cargo run -- --latitude 51.0447 --longitude=-114.0719
 ```
+
+**Note**: For negative longitudes (west of prime meridian), use `--longitude=-VALUE` format with the equals sign.
 
 ## Command Line Options
 
 ```
 Options:
-  --update-db    Update the database with latest weather station and climate data
-  -h, --help     Print help information
+      --update-db                    Update the database with latest weather station and climate data
+      --latitude <LATITUDE>          Latitude of the location to analyze
+      --longitude <LONGITUDE>        Longitude of the location to analyze
+  -n, --num-stations <NUM_STATIONS>  Number of nearest stations to consider for analysis [default: 5]
+  -h, --help                         Print help
 ```
+
+### Options Details
+
+- **`--update-db`**: Fetches and stores weather station and climate data. Run this once initially, or periodically to refresh data.
+- **`--latitude`**: Latitude coordinate of your location (decimal degrees) - **Required** for analysis
+- **`--longitude`**: Longitude coordinate of your location (decimal degrees, negative for western hemisphere) - **Required** for analysis
+- **`-n, --num-stations`**: How many nearby stations to include in the analysis (more stations = broader regional average)
 
 ## Database
 
@@ -106,17 +142,29 @@ backend/
 ├── Cargo.toml              # Rust dependencies and project configuration
 ├── src/
 │   ├── main.rs            # Main entry point and CLI interface
-│   ├── aggregator/        # Data fetching from Environment Canada API
-│   │   ├── mod.rs
-│   │   └── aggregator.rs
-│   ├── db/                # Database operations and schema
-│   │   ├── mod.rs
-│   │   └── db.rs
-│   └── nearest/           # KD-tree spatial search for finding nearest stations
-│       ├── mod.rs
-│       └── nearest.rs
+│   ├── aggregator.rs      # Data fetching from Environment Canada API
+│   ├── db.rs              # Database operations and schema
+│   ├── nearest.rs         # KD-tree spatial search for finding nearest stations
+│   └── analyzer.rs        # Tire swap recommendation analyzer
 └── tireswap.db           # SQLite database (created on first run)
 ```
+
+## Modules
+
+### `analyzer`
+Provides the `Analyzer` struct which takes a location (latitude/longitude) and calculates optimal tire change dates by:
+- Finding the k-nearest weather stations
+- Collecting climate data from each station
+- Computing average dates across all stations
+
+### `aggregator`
+Handles all API communication with Environment Canada to fetch station lists and climate data.
+
+### `db`
+Manages SQLite database operations including schema initialization and CRUD operations for stations and climate data.
+
+### `nearest`
+Implements efficient spatial search using KD-tree data structure to quickly find closest weather stations to any location.
 
 ## Dependencies
 
@@ -133,26 +181,25 @@ See [Cargo.toml](Cargo.toml) for the complete list.
 
 ## Example Output
 
+### Database Update
 ```
---- Finding Nearest Station ---
-Finding 5 nearest stations to home (42.3149, -83.0364)...
+Fetching stations from API...
+Successfully inserted 142 stations into database
 
-1. WINDSOR A - 3.42 km away
-   Location: (42.27, -82.96)
-   Climate Metrics:
-     First snowfall: November 15
-     Last snowfall: March 28
-     Switch to summer tires: April 15
-     Switch to winter tires: November 1
+Fetching climate data for all stations...
+[00:02:15] ████████████████████████████ 142/142
+Climate data collection complete!
+```
 
-2. CHATHAM KEIL DRIVE - 45.23 km away
-   Location: (42.40, -82.18)
-   Climate Metrics:
-     First snowfall: November 20
-     Last snowfall: March 25
-     Switch to summer tires: April 10
-     Switch to winter tires: November 5
-...
+### Tire Swap Analysis
+```
+--- Tire Swap Analysis ---
+Analyzing tire swap dates for location (42.3149, -83.0364)...
+
+Based on 5 nearest weather stations:
+
+🌞 Switch to summer tires: April 30
+❄️  Switch to winter tires: October 22
 ```
 
 ## Performance

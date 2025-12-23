@@ -9,7 +9,9 @@ mod aggregator;
 use aggregator::Aggregator;
 
 mod nearest;
-use nearest::NearestStationFinder;
+
+mod analyzer;
+use analyzer::Analyzer;
 
 /// Tire Swap Weather Station Finder
 #[derive(Parser, Debug)]
@@ -19,6 +21,18 @@ struct Args {
     /// Update the database with latest weather station and climate data
     #[arg(long)]
     update_db: bool,
+
+    /// Latitude of the location to analyze
+    #[arg(long)]
+    latitude: Option<f64>,
+
+    /// Longitude of the location to analyze
+    #[arg(long)]
+    longitude: Option<f64>,
+
+    /// Number of nearest stations to consider for analysis
+    #[arg(long, short = 'n', default_value = "5")]
+    num_stations: usize,
 }
 
 #[tokio::main]
@@ -89,69 +103,45 @@ async fn main() {
         }
     }
 
-    // Example: Find nearest station to Home coordinates
-    println!("\n--- Finding Nearest Station ---");
-    match NearestStationFinder::new(&db) {
-        Ok(finder) => {
-            // Home coordinates Windsor, ON
-            let home_lat = 42.3149;
-            let home_lon = -83.0364;
-
-            // Home coordinates London, ON
-            // let home_lat = 42.9849;
-            // let home_lon = -81.2453;
-
-            // Home coordinates Thunder Bay, ON
-            // let home_lat = 48.3809;
-            // let home_lon = -89.2477;
-
-            // Home coordinates Winnipeg, MB
-            // let home_lat = 49.8951;
-            // let home_lon = -97.1384;
-
-            // Home coordinates Calgary, AB
-            // let home_lat = 51.0447;
-            // let home_lon = -114.0719;
-
-            println!(
-                "Finding 5 nearest stations to home ({}, {})...\n",
-                home_lat, home_lon
-            );
-            let nearest_5 = finder.find_k_nearest(home_lat, home_lon, 5);
-
-            for (i, station) in nearest_5.iter().enumerate() {
+    // Analyze tire swap dates for a location (if coordinates provided)
+    if let (Some(latitude), Some(longitude)) = (args.latitude, args.longitude) {
+        println!("\n--- Tire Swap Analysis ---");
+        match Analyzer::new(&db) {
+            Ok(analyzer) => {
                 println!(
-                    "{}. {} - {:.2} km away",
-                    i + 1,
-                    station.name,
-                    station.distance_km
+                    "Analyzing tire swap dates for location ({}, {})...\n",
+                    latitude, longitude
                 );
-                println!("   Location: ({}, {})", station.lat_y, station.lon_x);
 
-                // Fetch climate data for this station
-                match db.get_data_by_station(station.id) {
-                    Ok(data_records) => {
-                        if let Some(data) = data_records.first() {
-                            println!("   Climate Metrics:");
-                            if let Some(switch_summer) = &data.switch_to_summer {
-                                println!("     Switch to summer tires: {}", switch_summer);
-                            } else {
-                                println!("     Switch to summer tires: N/A");
-                            }
-                            if let Some(switch_winter) = &data.switch_to_winter {
-                                println!("     Switch to winter tires: {}", switch_winter);
-                            } else {
-                                println!("     Switch to winter tires: N/A");
-                            }
+                match analyzer.analyze(latitude, longitude, args.num_stations) {
+                    Ok(recommendation) => {
+                        println!(
+                            "Based on {} nearest weather stations:",
+                            recommendation.stations_analyzed
+                        );
+                        println!();
+
+                        if let Some(summer) = recommendation.switch_to_summer {
+                            println!("🌞 Switch to summer tires: {}", summer);
                         } else {
-                            println!("   Climate Metrics: No data available");
+                            println!("🌞 Switch to summer tires: No data available");
                         }
+
+                        if let Some(winter) = recommendation.switch_to_winter {
+                            println!("❄️  Switch to winter tires: {}", winter);
+                        } else {
+                            println!("❄️  Switch to winter tires: No data available");
+                        }
+                        println!();
                     }
-                    Err(e) => println!("   Climate Metrics: Error fetching data - {}", e),
+                    Err(e) => eprintln!("Error analyzing tire swap dates: {}", e),
                 }
-                println!();
             }
+            Err(e) => eprintln!("Error creating tire swap analyzer: {}", e),
         }
-        Err(e) => eprintln!("Error creating nearest station finder: {}", e),
+    } else if !args.update_db {
+        eprintln!("\nError: Please provide --latitude and --longitude to analyze a location.");
+        eprintln!("Or use --update-db to update the database.\n");
+        eprintln!("For help, run: cargo run -- --help");
     }
 }
