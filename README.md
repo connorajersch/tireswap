@@ -8,13 +8,13 @@ Every year, Canadian drivers face the same question: when should I switch my tir
 
 TireSwap solves this problem by analyzing years of historical weather patterns from your specific location to provide data-driven recommendations. No more guessing, no more relying on arbitrary calendar dates. Just smart, localized advice based on real climate trends.
 
-## The Science Behind It
+## What We Use
 
 Winter tires are engineered to perform better below 7°C, while summer tires excel above that threshold. TireSwap analyzes:
 
 - **Temperature Patterns**: When does your area consistently cross the 7°C threshold?
-- **Multi-Year Trends**: Statistical analysis across decades of data for reliable predictions
-- **Local Climate Stations**: Uses the nearest weather stations for hyper-local accuracy
+- **Multi-Year Trends**: Statistical analysis across recent years of data for reliable predictions
+- **Local Climate Stations**: Uses the nearest weather stations for local results
 
 ## How It Works
 
@@ -60,10 +60,6 @@ For setup and development instructions, see the README in each component directo
 - 📋 Location search with postal code support
 - 📋 Multi-year trend visualization
 - 📋 Mobile-responsive design
-
-## Contributing
-
-Contributions are welcome! Whether you're interested in data science, backend development, or frontend design, there's room to help make TireSwap better. Please feel free to submit issues or pull requests.
 
 ## License
 
