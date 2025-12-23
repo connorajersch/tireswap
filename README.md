@@ -1,103 +1,69 @@
 # TireSwap 🚗❄️
 
-A web service that helps users determine the optimal date to switch between summer and winter tires based on historical weather data from the Government of Canada.
+A smart web service that helps Canadian drivers determine the optimal dates to switch between summer and winter tires based on decades of historical weather data.
 
-## Overview
+## Why TireSwap?
 
-TireSwap analyzes historical weather data to determine the average date of first and last snowfall, as well as temperature patterns (specifically when temperatures are above or below 7°C). This information helps users make informed decisions about when to switch their tires for optimal safety and compliance with local regulations.
+Every year, Canadian drivers face the same question: when should I switch my tires? Switch too early and you waste money on unnecessary wear. Switch too late and you risk your safety on icy roads—and potential fines in provinces with mandatory winter tire regulations.
 
-## Features
+TireSwap solves this problem by analyzing years of historical weather patterns from your specific location to provide data-driven recommendations. No more guessing, no more relying on arbitrary calendar dates. Just smart, localized advice based on real climate trends.
 
-- **Historical Weather Data Analysis**: Leverages the Government of Canada's free weather API
-- **Climate Station Database**: Stores and manages data from climate stations across Canada
-- **Optimal Timing Recommendations**: Calculates the best dates for tire switching based on multi-year trends
-- **SQLite Storage**: Fast data retrieval with local database storage
+## The Science Behind It
 
-## Technology Stack
+Winter tires are engineered to perform better below 7°C, while summer tires excel above that threshold. TireSwap analyzes:
 
-- **Language**: Rust
-- **Database**: SQLite (with bundled support)
-- **HTTP Client**: reqwest (async with tokio)
-- **Data Format**: JSON & CSV
-
-## Project Structure
-
-```
-tireswap/
-├── backend/
-│   ├── Cargo.toml          # Rust dependencies and project metadata
-│   └── src/
-│       ├── main.rs         # Application entry point
-│       ├── aggregator/     # Weather data aggregation logic
-│       │   ├── mod.rs
-│       │   └── aggregator.rs
-│       └── db/             # Database operations
-│           ├── mod.rs
-│           └── db.rs
-└── README.md
-```
-
-## Getting Started
-
-### Prerequisites
-
-- Rust (edition 2024)
-- Cargo
-
-### Installation
-
-1. Clone the repository:
-```bash
-git clone https://github.com/yourusername/tireswap.git
-cd tireswap
-```
-
-2. Navigate to the backend directory:
-```bash
-cd backend
-```
-
-3. Build the project:
-```bash
-cargo build
-```
-
-4. Run the application:
-```bash
-cargo run
-```
-
-## Dependencies
-
-- **reqwest** (v0.12) - HTTP client with blocking and JSON features
-- **tokio** (v1) - Async runtime with full features
-- **rusqlite** (v0.37) - SQLite bindings with bundled SQLite
-- **serde_json** (v1.0) - JSON serialization/deserialization
+- **Temperature Patterns**: When does your area consistently cross the 7°C threshold?
+- **Multi-Year Trends**: Statistical analysis across decades of data for reliable predictions
+- **Local Climate Stations**: Uses the nearest weather stations for hyper-local accuracy
 
 ## How It Works
 
-1. **Data Collection**: The aggregator fetches climate station data from the Government of Canada's API
-2. **Data Storage**: Station information (ID, name, coordinates) is stored in a local SQLite database
-3. **Analysis**: Historical weather data is processed to identify patterns in snowfall and temperature
-4. **Recommendations**: Based on the analyzed data, optimal tire switching dates are calculated
+1. **Find Your Location**: Enter your city or postal code
+2. **Get Personalized Dates**: Receive optimal switch dates based on historical data from nearby climate stations
+3. **Plan Ahead**: Schedule your tire appointments with confidence, knowing you're making a data-informed decision
+
+## Project Components
+
+TireSwap consists of two main components:
+
+- **Backend**: Data aggregation, analysis engine, and REST API (see [backend/README.md](backend/README.md))
+- **Frontend**: User interface for searching locations and viewing recommendations *(coming soon)*
 
 ## Data Sources
 
-This project uses the [Government of Canada Climate Data API](https://api.weather.gc.ca/):
-- Climate stations: `https://api.weather.gc.ca/collections/climate-stations/items`
-- Historical weather data: `https://climate.weather.gc.ca/climate_data/bulk_data_e.html`
+TireSwap uses official data from:
+- [Government of Canada Climate Data API](https://api.weather.gc.ca/)
+- Historical weather observations from Environment and Climate Change Canada
 
-## Development Status
+All weather data is freely available and publicly accessible, ensuring transparency and reproducibility.
 
-This project is currently in active development. Current functionality includes:
-- 🚧 Climate station data fetching and storage
-- 🚧 Historical weather data analysis
-- 🚧 Tire switching recommendation engine
-- 🚧 API server implementation
+## Getting Started
+
+This project is organized as a monorepo:
+
+```
+tireswap/
+├── backend/     # Data processing and API server
+├── frontend/    # Web application (coming soon)
+└── README.md    # This file
+```
+
+For setup and development instructions, see the README in each component directory.
+
+## Development Roadmap
+
+- ✅ Climate station data collection infrastructure
+- 🚧 Historical weather data analysis engine
+- 🚧 Recommendation algorithm
+- 🚧 REST API server
+- 📋 Web frontend
+- 📋 Location search with postal code support
+- 📋 Multi-year trend visualization
+- 📋 Mobile-responsive design
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome! Whether you're interested in data science, backend development, or frontend design, there's room to help make TireSwap better. Please feel free to submit issues or pull requests.
 
 ## License
 
@@ -105,5 +71,4 @@ This project is open source and available under the MIT License.
 
 ## Acknowledgments
 
-- Weather data provided by the [Government of Canada](https://weather.gc.ca/)
-- Based on the principle that winter tires perform better below 7°C while summer tires are optimal above that threshold
+- Weather data provided by [Environment and Climate Change Canada](https://weather.gc.ca/)

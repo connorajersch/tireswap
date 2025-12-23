@@ -133,16 +133,6 @@ async fn main() {
                     Ok(data_records) => {
                         if let Some(data) = data_records.first() {
                             println!("   Climate Metrics:");
-                            if let Some(first_snow) = &data.first_sf {
-                                println!("     First snowfall: {}", first_snow);
-                            } else {
-                                println!("     First snowfall: N/A");
-                            }
-                            if let Some(last_snow) = &data.last_sf {
-                                println!("     Last snowfall: {}", last_snow);
-                            } else {
-                                println!("     Last snowfall: N/A");
-                            }
                             if let Some(switch_summer) = &data.switch_to_summer {
                                 println!("     Switch to summer tires: {}", switch_summer);
                             } else {

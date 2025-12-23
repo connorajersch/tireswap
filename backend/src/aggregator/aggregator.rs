@@ -225,17 +225,10 @@ impl<'a> Aggregator<'a> {
                 let mut rdr = csv::Reader::from_reader(response.as_bytes());
                 for result in rdr.records() {
                     if let Ok(record) = result {
-                        // Extract fields: Date is field 4, Mean Temp is field 13, Total Snow is field 21
+                        // Extract fields: Date is field 4, Mean Temp is field 13
                         if let Some(date_str) = record.get(4) {
                             if let Ok(date) = NaiveDate::parse_from_str(date_str, "%Y-%m-%d") {
                                 let mean_temp = record.get(13).and_then(|s| {
-                                    if s.is_empty() || s == "M" {
-                                        None
-                                    } else {
-                                        s.parse::<f64>().ok()
-                                    }
-                                });
-                                let total_snow = record.get(21).and_then(|s| {
                                     if s.is_empty() || s == "M" {
                                         None
                                     } else {
@@ -246,7 +239,6 @@ impl<'a> Aggregator<'a> {
                                 records.push(DailyRecord {
                                     date,
                                     mean_temp,
-                                    total_snow,
                                 });
                             }
                         }
@@ -282,8 +274,6 @@ impl<'a> Aggregator<'a> {
         // Calculate metrics for each year
         let mut switch_to_summer_days = Vec::new();
         let mut switch_to_winter_days = Vec::new();
-        let mut first_snowfall_days = Vec::new();
-        let mut last_snowfall_days = Vec::new();
 
         for (_year, records) in yearly_data.iter_mut() {
             records.sort_by_key(|r| r.date);
@@ -329,38 +319,17 @@ impl<'a> Aggregator<'a> {
                     }
                 }
             }
-
-            // Find first snowfall
-            if let Some(record) = records
-                .iter()
-                .find(|r| r.total_snow.map_or(false, |s| s > 0.0))
-            {
-                first_snowfall_days.push(record.date.ordinal() as i32);
-            }
-
-            // Find last snowfall
-            if let Some(record) = records
-                .iter()
-                .rev()
-                .find(|r| r.total_snow.map_or(false, |s| s > 0.0))
-            {
-                last_snowfall_days.push(record.date.ordinal() as i32);
-            }
         }
 
         // Calculate averages
         let avg_switch_to_summer = average_day_of_year(&switch_to_summer_days);
         let avg_switch_to_winter = average_day_of_year(&switch_to_winter_days);
-        let avg_first_snow = average_day_of_year(&first_snowfall_days);
-        let avg_last_snow = average_day_of_year(&last_snowfall_days);
 
         // Store in database (using current year as reference)
         let current_year = Utc::now().year() as i64;
         self.db.insert_data(
             station_id,
             current_year,
-            avg_first_snow.as_deref(),
-            avg_last_snow.as_deref(),
             avg_switch_to_summer.as_deref(),
             avg_switch_to_winter.as_deref(),
         )?;
@@ -373,7 +342,6 @@ impl<'a> Aggregator<'a> {
 struct DailyRecord {
     date: NaiveDate,
     mean_temp: Option<f64>,
-    total_snow: Option<f64>,
 }
 
 /// Calculate average day of year and convert to date string

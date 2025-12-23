@@ -8,8 +8,6 @@ pub struct ClimateData {
     pub id: i64,
     pub station_id: i64,
     pub year: i64,
-    pub first_sf: Option<String>,
-    pub last_sf: Option<String>,
     pub switch_to_summer: Option<String>,
     pub switch_to_winter: Option<String>,
 }
@@ -68,8 +66,6 @@ impl Database {
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 station_id INTEGER NOT NULL,
                 year INTEGER NOT NULL,
-                first_sf TEXT,
-                last_sf TEXT,
                 switch_to_summer TEXT,
                 switch_to_winter TEXT,
                 FOREIGN KEY (station_id) REFERENCES stations(id)
@@ -112,10 +108,8 @@ impl Database {
     /// # Arguments
     /// * `station_id` - Station ID
     /// * `year` - Year
-    /// * `first_sf` - First snowfall date
-    /// * `last_sf` - Last snowfall date
-    /// * `first_above` - First day above freezing
-    /// * `first_below` - First day below freezing
+    /// * `switch_to_summer` - Switch to summer tires date
+    /// * `switch_to_winter` - Switch to winter tires date
     ///
     /// # Returns
     /// * `Result<i64>` - ID of the inserted data
@@ -124,19 +118,15 @@ impl Database {
         &self,
         station_id: i64,
         year: i64,
-        first_sf: Option<&str>,
-        last_sf: Option<&str>,
         switch_to_summer: Option<&str>,
         switch_to_winter: Option<&str>,
     ) -> Result<i64> {
         self.conn.execute(
-            "INSERT INTO data (station_id, year, first_sf, last_sf, switch_to_summer, switch_to_winter)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            "INSERT INTO data (station_id, year, switch_to_summer, switch_to_winter)
+             VALUES (?1, ?2, ?3, ?4)",
             params![
                 station_id,
                 year,
-                first_sf,
-                last_sf,
                 switch_to_summer,
                 switch_to_winter
             ],
@@ -207,7 +197,7 @@ impl Database {
     #[allow(dead_code)]
     pub fn get_data_by_station(&self, station_id: i64) -> Result<Vec<ClimateData>> {
         let mut stmt = self.conn.prepare(
-            "SELECT id, station_id, year, first_sf, last_sf, switch_to_summer, switch_to_winter
+            "SELECT id, station_id, year, switch_to_summer, switch_to_winter
              FROM data WHERE station_id = ?1",
         )?;
 
@@ -216,10 +206,8 @@ impl Database {
                 id: row.get(0)?,
                 station_id: row.get(1)?,
                 year: row.get(2)?,
-                first_sf: row.get(3)?,
-                last_sf: row.get(4)?,
-                switch_to_summer: row.get(5)?,
-                switch_to_winter: row.get(6)?,
+                switch_to_summer: row.get(3)?,
+                switch_to_winter: row.get(4)?,
             })
         })?;
 
@@ -240,7 +228,7 @@ impl Database {
     #[allow(dead_code)]
     pub fn get_data_by_year(&self, year: i64) -> Result<Vec<ClimateData>> {
         let mut stmt = self.conn.prepare(
-            "SELECT id, station_id, year, first_sf, last_sf, switch_to_summer, switch_to_winter
+            "SELECT id, station_id, year, switch_to_summer, switch_to_winter
              FROM data WHERE year = ?1",
         )?;
 
@@ -249,10 +237,8 @@ impl Database {
                 id: row.get(0)?,
                 station_id: row.get(1)?,
                 year: row.get(2)?,
-                first_sf: row.get(3)?,
-                last_sf: row.get(4)?,
-                switch_to_summer: row.get(5)?,
-                switch_to_winter: row.get(6)?,
+                switch_to_summer: row.get(3)?,
+                switch_to_winter: row.get(4)?,
             })
         })?;
 
@@ -270,7 +256,7 @@ impl Database {
     #[allow(dead_code)]
     pub fn get_all_data(&self) -> Result<Vec<ClimateData>> {
         let mut stmt = self.conn.prepare(
-            "SELECT id, station_id, year, first_sf, last_sf, switch_to_summer, switch_to_winter FROM data",
+            "SELECT id, station_id, year, switch_to_summer, switch_to_winter FROM data",
         )?;
 
         let data_entries = stmt.query_map([], |row| {
@@ -278,10 +264,8 @@ impl Database {
                 id: row.get(0)?,
                 station_id: row.get(1)?,
                 year: row.get(2)?,
-                first_sf: row.get(3)?,
-                last_sf: row.get(4)?,
-                switch_to_summer: row.get(5)?,
-                switch_to_winter: row.get(6)?,
+                switch_to_summer: row.get(3)?,
+                switch_to_winter: row.get(4)?,
             })
         })?;
 
@@ -397,8 +381,6 @@ mod tests {
             .insert_data(
                 4607,
                 2023,
-                Some("2023-11-15"),
-                Some("2023-12-01"),
                 Some("2023-10-20"),
                 Some("2023-11-05"),
             )
@@ -408,7 +390,7 @@ mod tests {
         let data = db.get_data_by_station(4607).unwrap();
         assert_eq!(data.len(), 1);
         assert_eq!(data[0].year, 2023);
-        assert_eq!(data[0].first_sf, Some("2023-11-15".to_string()));
+        assert_eq!(data[0].switch_to_summer, Some("2023-10-20".to_string()));
     }
 
     #[test]
@@ -439,7 +421,7 @@ mod tests {
 
         db.insert_station(4607, &"Test Station".to_string(), -79.4, 43.7, None, None)
             .unwrap();
-        db.insert_data(4607, 2023, Some("2023-11-15"), None, None, None)
+        db.insert_data(4607, 2023, None, None)
             .unwrap();
 
         db.delete_station(4607).unwrap();
