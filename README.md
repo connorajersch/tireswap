@@ -53,13 +53,15 @@ For setup and development instructions, see the README in each component directo
 ## Development Roadmap
 
 - ✅ Climate station data collection infrastructure
-- 🚧 Historical weather data analysis engine
-- 🚧 Recommendation algorithm
-- 🚧 REST API server
+- ✅ Historical weather data analysis engine
+- ✅ Recommendation algorithm (temperature-based)
+- ✅ REST API server with location-based queries
+- ✅ Nearest station selection algorithm
 - 📋 Web frontend
-- 📋 Location search with postal code support
+- 📋 Postal code and city name search
 - 📋 Multi-year trend visualization
 - 📋 Mobile-responsive design
+- 📋 Confidence intervals and data quality indicators
 
 ## License
 
