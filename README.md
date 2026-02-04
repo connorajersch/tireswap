@@ -44,11 +44,26 @@ This project is organized as a monorepo:
 ```
 tireswap/
 ├── backend/     # Data processing and API server
-├── frontend/    # Web application (coming soon)
+├── frontend/    # Web application
 └── README.md    # This file
 ```
 
 For setup and development instructions, see the README in each component directory.
+
+### Frontend Quickstart
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Create a `frontend/.env.local` file with:
+
+```bash
+VITE_API_BASE_URL=http://localhost:8080
+VITE_API_TOKEN=replace-me
+```
 
 ## Development Roadmap
 
