@@ -66,7 +66,30 @@ Get recommended tire swap dates for a specific location based on historical weat
   "longitude": -79.4,
   "switch_to_summer": "April 15",
   "switch_to_winter": "October 25",
-  "stations_analyzed": 5
+  "stations_analyzed": 5,
+  "stations": {
+    "requested": 5,
+    "returned": 5,
+    "list": [
+      { "id": 4607, "name": "TORONTO CITY", "distance_km": 3.2 }
+    ],
+    "distance_km": { "min": 3.2, "avg": 12.8, "max": 25.4 }
+  },
+  "quality": {
+    "summer": {
+      "stations_with_data": 4,
+      "coverage_pct": 80.0
+    },
+    "winter": {
+      "stations_with_data": 5,
+      "coverage_pct": 100.0
+    },
+    "data_years": {
+      "min_span_years": 8,
+      "avg_span_years": 12.4,
+      "max_span_years": 19
+    }
+  }
 }
 ```
 
@@ -77,6 +100,8 @@ Get recommended tire swap dates for a specific location based on historical weat
 - `switch_to_summer`: Recommended date to switch to summer tires (null if no data available)
 - `switch_to_winter`: Recommended date to switch to winter tires (null if no data available)
 - `stations_analyzed`: Number of weather stations used in the analysis
+- `stations`: Station metadata including list and distance summary
+- `quality`: Coverage and data-quality metrics
 
 **Example Requests:**
 
@@ -97,11 +122,22 @@ If an error occurs, the API returns an error response:
 
 ```json
 {
-  "error": "Error message describing what went wrong"
+  "error": {
+    "code": "ANALYSIS_FAILED",
+    "message": "Analysis failed",
+    "details": "Optional low-level error details"
+  }
 }
 ```
 
 **HTTP Status Codes:**
 
 - `200 OK`: Successful request
+- `400 Bad Request`: Invalid query parameters
 - `500 Internal Server Error`: Server error (e.g., database error, analysis failure)
+
+**Error Codes:**
+
+- `INVALID_QUERY`: Invalid query parameters
+- `ANALYSIS_FAILED`: Analyzer or data processing failure
+- `INTERNAL_ERROR`: Unexpected internal error
