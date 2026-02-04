@@ -141,3 +141,89 @@ If an error occurs, the API returns an error response:
 - `INVALID_QUERY`: Invalid query parameters
 - `ANALYSIS_FAILED`: Analyzer or data processing failure
 - `INTERNAL_ERROR`: Unexpected internal error
+
+---
+
+### Search For City Or Canadian Postal Code
+
+Resolve a city name or Canadian postal code to coordinates and basic location metadata.
+
+**Endpoint:** `GET /api/search`
+
+**Query Parameters:**
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `query` | string | Yes | - | City name or Canadian postal code (e.g., `Toronto`, `M5V 2T6`) |
+
+**Response:**
+
+```json
+{
+  "query": "Toronto",
+  "normalized_query": "Toronto",
+  "results": [
+    {
+      "city": "Toronto",
+      "province": "Ontario",
+      "postal_code": "M5V 2T6",
+      "lat": 43.653226,
+      "lon": -79.3831843,
+      "source": "nominatim"
+    }
+  ]
+}
+```
+
+**Response Fields:**
+
+- `query`: The original query string
+- `normalized_query`: Normalized query string used for lookup
+- `results`: List of location matches (currently returns the top match)
+- `city`: City or municipality name (when available)
+- `province`: Province/territory name (when available)
+- `postal_code`: Postal code if returned by the provider
+- `lat`: Latitude
+- `lon`: Longitude
+- `source`: Geocoding provider identifier
+
+**Example Requests:**
+
+```bash
+# City lookup
+curl "http://localhost:3000/api/search?query=Toronto"
+
+# Postal code lookup
+curl "http://localhost:3000/api/search?query=M5V%202T6"
+```
+
+**Error Response:**
+
+```json
+{
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "No results found for query",
+    "details": "Try a different city or Canadian postal code"
+  }
+}
+```
+
+**HTTP Status Codes:**
+
+- `200 OK`: Successful request
+- `400 Bad Request`: Invalid query (missing/empty)
+- `404 Not Found`: No matching location
+- `502 Bad Gateway`: Upstream geocoder error
+
+**Error Codes:**
+
+- `INVALID_QUERY`: Missing/empty query parameter
+- `NOT_FOUND`: No results for the query
+- `GEOCODE_FAILED`: Upstream geocoder request failure
+
+**Provider Notes:**
+
+- Geocoding uses OpenStreetMap Nominatim. Respect their usage policy and rate limits (1 request/second).
+- The API caches successful results in memory for 1 hour to reduce upstream calls.
+- Set `TIRESWAP_NOMINATIM_UA` to customize the User-Agent header for Nominatim requests.
