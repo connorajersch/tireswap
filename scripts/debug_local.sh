@@ -63,6 +63,38 @@ done
 
 API_BASE_URL="http://127.0.0.1:${BACKEND_PORT}"
 
+list_port_listeners() {
+  local port="$1"
+
+  if ! command -v lsof >/dev/null 2>&1; then
+    return 0
+  fi
+
+  lsof -nP -iTCP:"$port" -sTCP:LISTEN 2>/dev/null \
+    | awk 'NR>1 {printf "%s (pid %s)\n", $1, $2}' \
+    || true
+}
+
+ensure_port_available() {
+  local port="$1"
+  local label="$2"
+  local listeners
+
+  listeners="$(list_port_listeners "$port")"
+  if [[ -n "$listeners" ]]; then
+    echo "error: ${label} port ${port} is already in use:" >&2
+    while IFS= read -r line; do
+      [[ -z "$line" ]] && continue
+      echo "  - ${line}" >&2
+    done <<<"$listeners"
+    echo "hint: stop the process above or choose a different port with --${label}-port <port>" >&2
+    exit 1
+  fi
+}
+
+ensure_port_available "$BACKEND_PORT" "backend"
+ensure_port_available "$FRONTEND_PORT" "frontend"
+
 prefix_stream() {
   local prefix="$1"
   while IFS= read -r line || [[ -n "$line" ]]; do

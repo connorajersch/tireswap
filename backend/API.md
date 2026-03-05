@@ -169,7 +169,7 @@ Resolve a city name or Canadian postal code to coordinates and basic location me
       "postal_code": "M5V 2T6",
       "lat": 43.653226,
       "lon": -79.3831843,
-      "source": "nominatim"
+      "source": "google_maps"
     }
   ]
 }
@@ -224,6 +224,6 @@ curl "http://localhost:3000/api/search?query=M5V%202T6"
 
 **Provider Notes:**
 
-- Geocoding uses OpenStreetMap Nominatim. Respect their usage policy and rate limits (1 request/second).
+- Geocoding uses Google Geocoding API.
 - The API caches successful results in memory for 1 hour to reduce upstream calls.
-- Set `TIRESWAP_NOMINATIM_UA` to customize the User-Agent header for Nominatim requests.
+- Set `GOOGLE_MAPS_API_KEY`, `TIRESWAP_GOOGLE_MAPS_API_KEY`, or `GMAPS_API_KEY` in the backend environment.
