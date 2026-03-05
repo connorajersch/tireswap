@@ -27,7 +27,7 @@ Winter tires are engineered to perform better below 7°C, while summer tires exc
 TireSwap consists of two main components:
 
 - **Backend**: Data aggregation, analysis engine, and REST API (see [backend/README.md](backend/README.md))
-- **Frontend**: User interface for searching locations and viewing recommendations *(coming soon)*
+- **Frontend**: React + Vite user interface scaffold (see [frontend/README.md](frontend/README.md))
 
 ## Data Sources
 
@@ -44,11 +44,26 @@ This project is organized as a monorepo:
 ```
 tireswap/
 ├── backend/     # Data processing and API server
-├── frontend/    # Web application (coming soon)
+├── frontend/    # Web application
 └── README.md    # This file
 ```
 
 For setup and development instructions, see the README in each component directory.
+
+### Frontend Quickstart
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Create a `frontend/.env.local` file with:
+
+```bash
+VITE_API_BASE_URL=http://localhost:8080
+VITE_API_TOKEN=replace-me
+```
 
 ## Development Roadmap
 
@@ -57,7 +72,7 @@ For setup and development instructions, see the README in each component directo
 - ✅ Recommendation algorithm (temperature-based)
 - ✅ REST API server with location-based queries
 - ✅ Nearest station selection algorithm
-- 📋 Web frontend
+- ✅ Web frontend scaffold
 - 📋 Postal code and city name search
 - 📋 Multi-year trend visualization
 - 📋 Mobile-responsive design
