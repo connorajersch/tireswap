@@ -1,0 +1,24 @@
+[Unit]
+Description=TireSwap backend API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=tireswap
+Group=tireswap
+EnvironmentFile=-/etc/tireswap/backend.env
+Environment=TIRESWAP_PORT=3000
+Environment=TIRESWAP_DB_PATH=/var/lib/tireswap/tireswap.db
+WorkingDirectory=/opt/tireswap/current
+ExecStart=/opt/tireswap/current/backend/bin/tireswap-backend --serve --port ${TIRESWAP_PORT} --db-path ${TIRESWAP_DB_PATH}
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/var/lib/tireswap /opt/tireswap
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target

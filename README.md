@@ -65,6 +65,49 @@ VITE_API_BASE_URL=http://localhost:8080
 VITE_API_TOKEN=replace-me
 ```
 
+## Build, Deploy, and Local Debug Tooling
+
+The repository includes script-first tooling for local debug and VPS deployment:
+
+```bash
+# build backend + frontend production artifacts
+make build
+
+# package a release tarball into dist/
+make package RELEASE=20260305153000
+
+# deploy on a VPS (run on the VPS host)
+make deploy RELEASE=20260305153000
+
+# rollback on a VPS (run on the VPS host)
+make rollback RELEASE=20260304120000
+
+# run backend + frontend together for local debugging
+make debug
+```
+
+Script entrypoints:
+
+- `scripts/build_backend.sh`
+- `scripts/build_frontend.sh`
+- `scripts/package_release.sh <release_id>`
+- `scripts/deploy_vps.sh <release_id>`
+- `scripts/rollback_vps.sh <release_id>`
+- `scripts/debug_local.sh [--update-db-first]`
+
+Deployment templates are in `deploy/systemd/` and `deploy/nginx/`.
+
+### GitHub Actions CI/CD
+
+`.github/workflows/ci-deploy.yml` runs tests/build/package on `main` and can deploy to a VPS over SSH.
+
+Set these repository secrets to enable deployment:
+
+- `VPS_HOST`
+- `VPS_USER`
+- `VPS_SSH_KEY`
+- `VPS_SSH_PORT` (optional, defaults to `22`)
+
 ## Development Roadmap
 
 - ✅ Climate station data collection infrastructure
