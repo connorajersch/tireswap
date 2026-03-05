@@ -2,19 +2,10 @@ use clap::Parser;
 use indicatif::{ProgressBar, ProgressStyle};
 use std::sync::Arc;
 
-mod db;
-use db::Database;
-
-mod aggregator;
-use aggregator::Aggregator;
-
-mod nearest;
-
-mod analyzer;
-use analyzer::Analyzer;
-
-mod api;
-use api::{AppState, create_router};
+use backend::aggregator::Aggregator;
+use backend::analyzer::Analyzer;
+use backend::api::{create_router, AppState};
+use backend::db::Database;
 
 /// Tire Swap Weather Station Finder
 #[derive(Parser, Debug)]
@@ -171,7 +162,19 @@ async fn main() {
 /// Run the API server
 async fn run_server(db: Database, port: u16) {
     let db_arc = Arc::new(db);
-    let state = AppState { db: db_arc };
+    let user_agent = std::env::var("TIRESWAP_NOMINATIM_UA")
+        .unwrap_or_else(|_| "TireSwap/0.1 (tireswap backend)".to_string());
+    let geocode_client = reqwest::Client::builder()
+        .user_agent(user_agent)
+        .build()
+        .expect("Failed to build geocoding client");
+
+    let state = AppState {
+        db: db_arc,
+        geocode_client,
+        geocode_cache: Arc::new(std::sync::Mutex::new(std::collections::HashMap::new())),
+        geocode_base_url: "https://nominatim.openstreetmap.org".to_string(),
+    };
     let app = create_router(state);
 
     let addr = format!("0.0.0.0:{}", port);
