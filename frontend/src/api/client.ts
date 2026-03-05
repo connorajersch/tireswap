@@ -51,3 +51,78 @@ export const apiClient = async <T>(
 
   return (await response.json()) as T;
 };
+
+export type SearchLocation = {
+  city: string | null;
+  province: string | null;
+  postal_code: string | null;
+  lat: number;
+  lon: number;
+  source: string;
+};
+
+export type SearchApiResponse = {
+  query: string;
+  normalized_query: string;
+  results: SearchLocation[];
+};
+
+export const searchLocations = async (query: string): Promise<SearchApiResponse> => {
+  const params = new URLSearchParams({ query });
+  return apiClient<SearchApiResponse>(`/api/search?${params.toString()}`);
+};
+
+export type StationSummary = {
+  id: number;
+  name: string;
+  distance_km: number;
+};
+
+export type DistanceSummary = {
+  min: number | null;
+  avg: number | null;
+  max: number | null;
+};
+
+export type SeasonalQuality = {
+  stations_with_data: number;
+  coverage_pct: number;
+};
+
+export type DataYearsSummary = {
+  min_span_years: number | null;
+  avg_span_years: number | null;
+  max_span_years: number | null;
+};
+
+export type OptimalDatesResponse = {
+  latitude: number;
+  longitude: number;
+  switch_to_summer: string | null;
+  switch_to_winter: string | null;
+  stations_analyzed: number;
+  stations: {
+    requested: number;
+    returned: number;
+    list: StationSummary[];
+    distance_km: DistanceSummary;
+  };
+  quality: {
+    summer: SeasonalQuality;
+    winter: SeasonalQuality;
+    data_years: DataYearsSummary;
+  };
+};
+
+export const getOptimalDates = async (
+  latitude: number,
+  longitude: number,
+  numStations = 5
+): Promise<OptimalDatesResponse> => {
+  const params = new URLSearchParams({
+    latitude: latitude.toString(),
+    longitude: longitude.toString(),
+    num_stations: numStations.toString(),
+  });
+  return apiClient<OptimalDatesResponse>(`/api/optimal-dates?${params.toString()}`);
+};

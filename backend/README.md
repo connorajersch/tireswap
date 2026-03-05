@@ -53,6 +53,14 @@ cargo run -- --serve --db-path /path/to/custom.db
 
 Once running, the API will be available at `http://localhost:3000` (or your custom port).
 
+Set a Google geocoding API key for `/api/search`:
+
+```bash
+export GOOGLE_MAPS_API_KEY=your-key-here
+```
+
+`TIRESWAP_GOOGLE_MAPS_API_KEY` and `GMAPS_API_KEY` are also supported.
+
 **API Endpoints:**
 
 - `GET /health` - Health check endpoint

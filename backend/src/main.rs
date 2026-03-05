@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use backend::aggregator::Aggregator;
 use backend::analyzer::Analyzer;
-use backend::api::{create_router, AppState};
+use backend::api::{AppState, create_router};
 use backend::db::Database;
 
 /// Tire Swap Weather Station Finder
@@ -43,6 +43,7 @@ struct Args {
 
 #[tokio::main]
 async fn main() {
+    let _ = dotenvy::dotenv();
     let args = Args::parse();
 
     // Initialize database
@@ -162,18 +163,18 @@ async fn main() {
 /// Run the API server
 async fn run_server(db: Database, port: u16) {
     let db_arc = Arc::new(db);
-    let user_agent = std::env::var("TIRESWAP_NOMINATIM_UA")
-        .unwrap_or_else(|_| "TireSwap/0.1 (tireswap backend)".to_string());
-    let geocode_client = reqwest::Client::builder()
-        .user_agent(user_agent)
-        .build()
-        .expect("Failed to build geocoding client");
+    let geocode_client = reqwest::Client::new();
+    let geocode_api_key = std::env::var("GOOGLE_MAPS_API_KEY")
+        .or_else(|_| std::env::var("TIRESWAP_GOOGLE_MAPS_API_KEY"))
+        .or_else(|_| std::env::var("GMAPS_API_KEY"))
+        .ok();
 
     let state = AppState {
         db: db_arc,
         geocode_client,
         geocode_cache: Arc::new(std::sync::Mutex::new(std::collections::HashMap::new())),
-        geocode_base_url: "https://nominatim.openstreetmap.org".to_string(),
+        geocode_base_url: "https://maps.googleapis.com".to_string(),
+        geocode_api_key,
     };
     let app = create_router(state);
 
@@ -184,7 +185,10 @@ async fn run_server(db: Database, port: u16) {
 
     println!("🚀 Tire Swap API server running on http://{}", addr);
     println!("   Health check: http://{}/health", addr);
-    println!("   Optimal dates: http://{}/api/optimal-dates?latitude=<lat>&longitude=<lon>", addr);
+    println!(
+        "   Optimal dates: http://{}/api/optimal-dates?latitude=<lat>&longitude=<lon>",
+        addr
+    );
     println!();
 
     axum::serve(listener, app)

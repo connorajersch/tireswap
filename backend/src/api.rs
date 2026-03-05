@@ -1,9 +1,9 @@
 use axum::{
+    Router,
     extract::{Query, State},
-    http::StatusCode,
+    http::{Method, StatusCode},
     response::{IntoResponse, Json},
     routing::get,
-    Router,
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -11,6 +11,7 @@ use std::{
     sync::{Arc, Mutex},
     time::{Duration, Instant},
 };
+use tower_http::cors::{Any, CorsLayer};
 
 use crate::analyzer::{Analyzer, Recommendation};
 use crate::db::Database;
@@ -24,6 +25,7 @@ pub struct AppState {
     pub geocode_client: reqwest::Client,
     pub geocode_cache: Arc<Mutex<HashMap<String, CacheEntry>>>,
     pub geocode_base_url: String,
+    pub geocode_api_key: Option<String>,
 }
 
 /// Query parameters for the optimal dates endpoint
@@ -68,8 +70,10 @@ impl From<Recommendation> for OptimalDatesResponse {
 
         let distance_km = calculate_distance_summary(&rec.stations);
         let stations_returned = rec.stations.len();
-        let summer_coverage = calculate_coverage_pct(rec.summer_stations_with_data, stations_returned);
-        let winter_coverage = calculate_coverage_pct(rec.winter_stations_with_data, stations_returned);
+        let summer_coverage =
+            calculate_coverage_pct(rec.summer_stations_with_data, stations_returned);
+        let winter_coverage =
+            calculate_coverage_pct(rec.winter_stations_with_data, stations_returned);
 
         Self {
             latitude: rec.latitude,
@@ -260,10 +264,7 @@ fn parse_search_query(raw: &str) -> Result<SearchKind, String> {
         return Ok(SearchKind::PostalCode { normalized });
     }
 
-    let normalized = trimmed
-        .split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ");
+    let normalized = trimmed.split_whitespace().collect::<Vec<_>>().join(" ");
 
     Ok(SearchKind::City { normalized })
 }
@@ -280,7 +281,10 @@ fn normalize_postal_code(raw: &str) -> Option<String> {
     }
 
     let chars: Vec<char> = compact.chars().collect();
-    if !is_postal_letter(chars[0], true) || !chars[1].is_ascii_digit() || !is_postal_letter(chars[2], false) {
+    if !is_postal_letter(chars[0], true)
+        || !chars[1].is_ascii_digit()
+        || !is_postal_letter(chars[2], false)
+    {
         return None;
     }
 
@@ -291,7 +295,8 @@ fn normalize_postal_code(raw: &str) -> Option<String> {
         {
             return None;
         }
-        return Some(format!("{} {}",
+        return Some(format!(
+            "{} {}",
             compact[0..3].to_string(),
             compact[3..6].to_string()
         ));
@@ -320,56 +325,100 @@ fn cache_key(kind: &SearchKind) -> String {
     }
 }
 
-async fn geocode_with_nominatim(
+async fn geocode_with_google(
     client: &reqwest::Client,
     base_url: &str,
+    api_key: &str,
     kind: &SearchKind,
 ) -> Result<Vec<LocationResult>, String> {
-    let query = match kind {
-        SearchKind::PostalCode { normalized } => format!("{}, Canada", normalized),
-        SearchKind::City { normalized } => format!("{}, Canada", normalized),
+    let (query, components) = match kind {
+        SearchKind::PostalCode { normalized } => (
+            format!("{}, Canada", normalized),
+            format!("country:CA|postal_code:{}", normalized.replace(' ', "")),
+        ),
+        SearchKind::City { normalized } => {
+            (format!("{}, Canada", normalized), "country:CA".to_string())
+        }
     };
 
-    let encoded = urlencoding::encode(&query);
     let base = base_url.trim_end_matches('/');
-    let url = format!(
-        "{}/search?q={}&format=json&addressdetails=1&limit=1&countrycodes=ca",
-        base, encoded
-    );
+    let url = format!("{}/maps/api/geocode/json", base);
 
     let response = client
         .get(url)
+        .query(&[
+            ("address", query.as_str()),
+            ("components", components.as_str()),
+            ("region", "ca"),
+            ("key", api_key),
+        ])
         .send()
         .await
         .map_err(|e| format!("geocoding request failed: {}", e))?;
 
     if !response.status().is_success() {
-        return Err(format!("geocoding request failed with status {}", response.status()));
+        return Err(format!(
+            "geocoding request failed with status {}",
+            response.status()
+        ));
     }
 
-    let results: Vec<NominatimResult> = response
+    let payload: GoogleGeocodeResponse = response
         .json()
         .await
         .map_err(|e| format!("failed to parse geocoding response: {}", e))?;
 
-    let mut locations = Vec::new();
-    for result in results.into_iter().take(1) {
-        let (lat, lon) = match (result.lat.parse::<f64>(), result.lon.parse::<f64>()) {
-            (Ok(lat), Ok(lon)) => (lat, lon),
-            _ => continue,
-        };
+    if payload.status == "ZERO_RESULTS" {
+        return Ok(Vec::new());
+    }
 
-        let (city, province, postal_code) = if let Some(address) = result.address {
-            let city = address
-                .city
-                .or(address.town)
-                .or(address.village)
-                .or(address.municipality)
-                .or(address.county);
-            let province = address.state.or(address.province);
-            (city, province, address.postcode)
-        } else {
-            (None, None, None)
+    if payload.status != "OK" {
+        let message = payload
+            .error_message
+            .unwrap_or_else(|| "no error details provided".to_string());
+        return Err(format!(
+            "geocoding request returned {}: {}",
+            payload.status, message
+        ));
+    }
+
+    let mut locations = Vec::new();
+    for result in payload.results.into_iter().take(5) {
+        let lat = result.geometry.location.lat;
+        let lon = result.geometry.location.lng;
+
+        let mut city: Option<String> = None;
+        let mut province: Option<String> = None;
+        let mut postal_code: Option<String> = None;
+
+        for component in result.address_components {
+            let has_type = |target: &str| component.types.iter().any(|item| item == target);
+
+            if city.is_none()
+                && (has_type("locality")
+                    || has_type("postal_town")
+                    || has_type("sublocality")
+                    || has_type("administrative_area_level_3"))
+            {
+                city = Some(component.long_name.clone());
+            }
+
+            if province.is_none() && has_type("administrative_area_level_1") {
+                province = Some(component.long_name.clone());
+            }
+
+            if postal_code.is_none() && has_type("postal_code") {
+                postal_code = Some(component.long_name.clone());
+            }
+        }
+
+        if city.is_none() {
+            city = result
+                .formatted_address
+                .as_deref()
+                .and_then(|formatted| formatted.split(',').next())
+                .map(|part| part.trim().to_string())
+                .filter(|part| !part.is_empty());
         };
 
         locations.push(LocationResult {
@@ -378,7 +427,7 @@ async fn geocode_with_nominatim(
             postal_code,
             lat,
             lon,
-            source: "nominatim".to_string(),
+            source: "google_maps".to_string(),
         });
     }
 
@@ -386,9 +435,9 @@ async fn geocode_with_nominatim(
 }
 
 /// Handler for GET /api/optimal-dates
-/// 
+///
 /// Returns optimal tire swap dates for a given location
-/// 
+///
 /// Query parameters:
 /// - latitude: f64 (required)
 /// - longitude: f64 (required)
@@ -471,20 +520,33 @@ async fn get_search(
         }
     }
 
-    let results = geocode_with_nominatim(
+    let geocode_api_key = state.geocode_api_key.as_deref().ok_or_else(|| {
+        error_response(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "CONFIG_ERROR",
+            "Geocoding provider is not configured",
+            Some(
+                "Set GOOGLE_MAPS_API_KEY, TIRESWAP_GOOGLE_MAPS_API_KEY, or GMAPS_API_KEY"
+                    .to_string(),
+            ),
+        )
+    })?;
+
+    let results = geocode_with_google(
         &state.geocode_client,
         &state.geocode_base_url,
+        geocode_api_key,
         &kind,
     )
-        .await
-        .map_err(|details| {
-            error_response(
-                StatusCode::BAD_GATEWAY,
-                "GEOCODE_FAILED",
-                "Geocoding request failed",
-                Some(details),
-            )
-        })?;
+    .await
+    .map_err(|details| {
+        error_response(
+            StatusCode::BAD_GATEWAY,
+            "GEOCODE_FAILED",
+            "Geocoding request failed",
+            Some(details),
+        )
+    })?;
 
     if results.is_empty() {
         return Err(error_response(
@@ -528,35 +590,50 @@ pub fn create_router(state: AppState) -> Router {
         .route("/health", get(health_check))
         .route("/api/optimal-dates", get(get_optimal_dates))
         .route("/api/search", get(get_search))
+        .layer(
+            CorsLayer::new()
+                .allow_origin(Any)
+                .allow_methods([Method::GET])
+                .allow_headers(Any),
+        )
         .with_state(state)
 }
 
 #[derive(Debug, Deserialize)]
-struct NominatimResult {
-    lat: String,
-    lon: String,
+struct GoogleGeocodeResponse {
     #[serde(default)]
-    address: Option<NominatimAddress>,
+    status: String,
+    #[serde(default)]
+    error_message: Option<String>,
+    #[serde(default)]
+    results: Vec<GoogleGeocodeResult>,
 }
 
 #[derive(Debug, Deserialize)]
-struct NominatimAddress {
+struct GoogleGeocodeResult {
+    geometry: GoogleGeometry,
     #[serde(default)]
-    city: Option<String>,
+    formatted_address: Option<String>,
     #[serde(default)]
-    town: Option<String>,
+    address_components: Vec<GoogleAddressComponent>,
+}
+
+#[derive(Debug, Deserialize)]
+struct GoogleGeometry {
+    location: GoogleLocation,
+}
+
+#[derive(Debug, Deserialize)]
+struct GoogleLocation {
+    lat: f64,
+    lng: f64,
+}
+
+#[derive(Debug, Deserialize)]
+struct GoogleAddressComponent {
+    long_name: String,
     #[serde(default)]
-    village: Option<String>,
-    #[serde(default)]
-    municipality: Option<String>,
-    #[serde(default)]
-    county: Option<String>,
-    #[serde(default)]
-    state: Option<String>,
-    #[serde(default)]
-    province: Option<String>,
-    #[serde(default)]
-    postcode: Option<String>,
+    types: Vec<String>,
 }
 
 #[cfg(test)]
