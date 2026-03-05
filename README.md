@@ -27,7 +27,7 @@ Winter tires are engineered to perform better below 7°C, while summer tires exc
 TireSwap consists of two main components:
 
 - **Backend**: Data aggregation, analysis engine, and REST API (see [backend/README.md](backend/README.md))
-- **Frontend**: User interface for searching locations and viewing recommendations *(coming soon)*
+- **Frontend**: React + Vite user interface scaffold (see [frontend/README.md](frontend/README.md))
 
 ## Data Sources
 
@@ -72,7 +72,7 @@ VITE_API_TOKEN=replace-me
 - ✅ Recommendation algorithm (temperature-based)
 - ✅ REST API server with location-based queries
 - ✅ Nearest station selection algorithm
-- 📋 Web frontend
+- ✅ Web frontend scaffold
 - 📋 Postal code and city name search
 - 📋 Multi-year trend visualization
 - 📋 Mobile-responsive design
