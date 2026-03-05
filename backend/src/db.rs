@@ -204,7 +204,8 @@ impl Database {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
             "SELECT id, station_id, year, switch_to_summer, switch_to_winter
-             FROM data WHERE station_id = ?1",
+             FROM data WHERE station_id = ?1
+             ORDER BY year DESC, id DESC",
         )?;
 
         let data_entries = stmt.query_map(params![station_id], |row| {

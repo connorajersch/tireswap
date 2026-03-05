@@ -298,4 +298,24 @@ mod tests {
         assert_eq!(rec.summer_stations_with_data, 1);
         assert_eq!(rec.winter_stations_with_data, 1);
     }
+
+    #[test]
+    fn test_analyze_uses_latest_year_data_per_station() {
+        let db = Database::new_in_memory().unwrap();
+        db.initialize_schema().unwrap();
+
+        db.insert_station(1, &"Station 1".to_string(), -79.4, 43.7, None, None)
+            .unwrap();
+
+        db.insert_data(1, 2020, Some("2020-04-01"), Some("2020-10-01"))
+            .unwrap();
+        db.insert_data(1, 2024, Some("2024-05-15"), Some("2024-11-15"))
+            .unwrap();
+
+        let analyzer = Analyzer::new(&db).unwrap();
+        let rec = analyzer.analyze(43.7, -79.4, 1).unwrap();
+
+        assert_eq!(rec.switch_to_summer.as_deref(), Some("May 15"));
+        assert_eq!(rec.switch_to_winter.as_deref(), Some("November 15"));
+    }
 }
